@@ -172,9 +172,9 @@ def main():
 def send(html):
         
     #create an email with recipient, subject, context and attachment
-    outlook = win32.Dispatch('outlook.application')  
+    outlook = win32.Dispatch('outlook.application')
     mail = outlook.CreateItem(0)  
-    
+
     #these email addresses are fabricated, PLZ DO NOT HARASS OUR GODDESS
     #just some random pornstar i love
     receivers = ['lana.rhodes@brazzers.com',
@@ -184,23 +184,23 @@ def send(html):
     #use ';' to separate receipients
     #this is a requirement of outlook
     mail.To = ';'.join(receivers) 
-    
-    mail.Subject ='Mid East Newsletter %s'%(dt.datetime.now())
+
+    mail.Subject = f'Mid East Newsletter {dt.datetime.now()}'
     mail.BodyFormat=2
-    
+
     #use html to make email looks more elegant
     #html is very simple
     #use br for line break, b for bold fonts
     #font for color and size, a href for hyperlink
     #check the website below to see more html tutorials
     # https://www.w3schools.com/html/
-    
+
     #Alternatively, we can use plain text email
     #remember to use '\r\n' to jump line
     #assuming html is a list of str
     #the code should be mail.Body = '\r\n'.join(html)
     mail.HTMLBody=html
-    
+
     #i usually print out everything
     #need to check carefully before sending to stakeholders
     #we can use mail.Display() to see the draft instead
@@ -210,7 +210,7 @@ def send(html):
         print('\nSENT')
     else:
         print('\nABORT')
-    
+
     return
 
 
@@ -223,7 +223,7 @@ def database(df):
     temp=[]
     conn = sqlite3.connect('mideast_news.db')
     c = conn.cursor()
-    
+
     #the table structure is simple
     #the table name is new
     #there are three columns, title, link and image
@@ -233,9 +233,9 @@ def database(df):
         try:
             c.execute("""INSERT INTO news VALUES (?,?,?)""",df.iloc[i,:])
             conn.commit()
-            
+
             print('Updating...')
-            
+
             #the idea is very simple
             #insert each line from our scraped result into database
             #as the primary key has been set up
@@ -247,21 +247,21 @@ def database(df):
             #at the end, output contains nothing but latest updates of websites
             #that is what we call newsletter
             temp.append(i)
-            
+
         except Exception as e:
             print(e)
-    
+
     conn.close()
-    
+
     #check if the output contains no updates
     if temp:
-        output=df.loc[[i for i in temp]]
+        output = df.loc[list(temp)]
         output.reset_index(inplace=True,drop=True)
     else:
         output=pd.DataFrame()
         output['title']=['No updates yet.']
         output['link']=output['image']=['']
-    
+
     return output
 
 
@@ -270,15 +270,13 @@ def scrape(url,method):
     
     print('scraping webpage effortlessly')
     time.sleep(5)
-    
+
     session=requests.Session()
-    response = session.get(url,headers={'User-Agent': 'Mozilla/5.0'})      
+    response = session.get(url,headers={'User-Agent': 'Mozilla/5.0'})
     page=bs(response.content,'html.parser',from_encoding='utf_8_sig')
-    
-    df=method(page) 
-    out=database(df)
-    
-    return out        
+
+    df=method(page)
+    return database(df)        
 
 
 """
@@ -436,7 +434,7 @@ def financialtimes(page):
 def wsj(page):
     
     df=pd.DataFrame()
-    
+
     text=str(page)
 
     link=re.findall('(?<=headline"> <a href=")\S*(?=">)',text)
@@ -446,18 +444,18 @@ def wsj(page):
     title=[]
     for i in link:
         try:
-            temp=re.search('(?<={}")>(.*?)<'.format(i),text).group()
+            temp = re.search(f'(?<={i}")>(.*?)<', text).group()
             title.append(temp)
         except:
             pass
 
     for i in range(len(title)):
         title[i]=title[i].replace('â€™',"'").replace('<','').replace('>','')
-        
+
     df['title']=title
     df['link']=link[:len(title)]
     df['image']=image+[''] if (len(image)!=len(title)) else image
-        
+
     return df
 
 
@@ -466,34 +464,28 @@ def bbc(page):
     
     title,link,image=[],[],[]
     df=pd.DataFrame()
-    
+
     prefix='https://www.bbc.co.uk'
-    
+
     a=page.find_all('span',class_='title-link__title-text')
-    
+
     for i in a:
         temp=i.parent.parent.parent.parent
         b=(re.findall('(?<=src=")\S*(?=jpg)',str(temp)))
-        
-        if len(b)>0:
-            b=copy.deepcopy(b[0])+'jpg'
-        else:
-            b=''
-            
+
+        b = copy.deepcopy(b[0])+'jpg' if len(b)>0 else ''
         image.append(b)
-    
-    for j in a:
-        title.append(j.text)
-    
+
+    title.extend(j.text for j in a)
     for k in a:
         temp=k.parent.parent
         c=re.findall('(?<=href=")\S*(?=">)',str(temp))
         link.append(prefix+c[0])
-        
+
     df['title']=title
     df['link']=link
     df['image']=image
-    
+
     return df
 
 
@@ -501,28 +493,30 @@ def bbc(page):
 def reuters(page):
     title,link,image=[],[],[]
     df=pd.DataFrame()
-    
+
     prefix='https://www.reuters.com'
-        
+
     for i in page.find('div', class_='news-headline-list').find_all('h3'):
         temp=i.text.replace('								','')
         title.append(temp.replace('\n',''))
-    
-    for j in page.find('div', class_='news-headline-list').find_all('a'):
-        link.append(prefix+j.get('href'))
-    link=link[0::2]
-        
+
+    link.extend(
+        prefix + j.get('href')
+        for j in page.find('div', class_='news-headline-list').find_all('a')
+    )
+    link = link[::2]
+
     for k in page.find('div', class_='news-headline-list').find_all('img'):
         if k.get('org-src'):
             image.append(k.get('org-src'))
         else:
             image.append('')
 
-    
+
     df['title']=title
     df['link']=link
     df['image']=image
-    
+
     return df
 
 

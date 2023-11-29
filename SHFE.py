@@ -41,22 +41,22 @@ def format_date():
     
     year=str(dt.datetime.now().year)
     month=(dt.datetime.now().month)
-    
+
     #i normally get t-1 prices
     day=(dt.datetime.now().day)-1
-    
+
     datetime=str(pd.to_datetime(f'{year}-{month}-{day}'))
-    date=datetime[:10].replace('-','')
-    
-    return date
+    return datetime[:10].replace('-','')
 
 
 #
 def scrape(date):
     
     session=requests.Session()
-    response = session.get('http://www.shfe.com.cn/data/dailydata/kx/kx%s.dat'%(date))
-        
+    response = session.get(
+        f'http://www.shfe.com.cn/data/dailydata/kx/kx{date}.dat'
+    )
+
     return response.content
 
 
@@ -72,7 +72,7 @@ def etl(content):
     #i only need the close price, which is the expression of slicing 9::16
     #and i only need certain types of commodity
     temp=numbers[9::16]
-    cu=temp[0:12]
+    cu = temp[:12]
     al=temp[13:25]
     zn=temp[26:38]
     pb=temp[39:51]
@@ -83,22 +83,24 @@ def etl(content):
 
     #customize the format based on my requirement
     group=al+['','']+cu+['','']+zn+['','']+pb+['','']+ni
-    upload=[al[0]]+cu[0:3]+zn[0:3]+pb[0:3]+frb[0:2]+[ag[2]]+['']+[au[2]]+ni[0:2]+[ni[3]]+[0]*50
+    upload = (
+        [al[0]]
+        + cu[:3]
+        + zn[:3]
+        + pb[:3]
+        + frb[:2]
+        + [ag[2]]
+        + ['']
+        + [au[2]]
+        + ni[:2]
+        + [ni[3]]
+        + [0] * 50
+    )
     df=pd.DataFrame(upload)
     df['upload']=group
     df['al extra']=al[1]
 
     return df
-    
-    #this is the regex to get date of each contract
-    #even though price and date are both stored in the same file
-    #date has quotation marks, price doesnt
-    #i dont need date, if u need it, just use the regex below
-    
-    """
-    temp=re.findall('(?<=")\d*(?=")',content.decode('utf_8-sig'))
-    date=temp[0:12]
-    """
 
 #
 def main():

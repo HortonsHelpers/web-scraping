@@ -27,44 +27,19 @@ os.chdir('H:/')
 def scrape(commodity_code):    
     
     session=requests.Session()
-    
-    
+
+
     #cme officially forbids scraping
     #so a header must be used to disguise as a browser
     #technically speaking, the website should be able to detect that too
     #those tech guys just turn a blind eye, thx fellas
     session.headers.update(
             {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36'})
-    
-    
-    #now that we have found out where the data is coming from
-    #we need to do a lil analysis on the url
-    #e.g. http://www.cmegroup.com/CmeWS/mvc/Quotes/Future/437/G
-    #it is quite obvious that 437 is a code name for commodity gold
-    #but how do we know the code for each commodity
-    #this is an issue raised by maysam19
-    # https://github.com/je-suis-tm/web-scraping/issues/1
-    #might as well as mention the solution here
-    #there are two ways to solve it
-    
-    #if you only need very few types of commodity
-    #you can go to websites one by one
-    #e.g. https://www.cmegroup.com/trading/metals/precious/gold.html
-    #you can right click and select view page source
-    #search for /CmeWS/mvc/Quotes/Future/
-    #you should find the commodity code easily
-    
-    #if you got so many types of commodity to scrape
-    #you should seek for the link that contains such information from inspect element
-    #here is the hack that i have done for you, voila
-    # https://www.cmegroup.com/CmeWS/mvc/ProductSlate/V2/List
-    #it is a json file that contains codes of each commodity in cme
-    #if you are visiting this script to understand json file
-    #dont worry, we will talk about how to read it very soon
-    response=session.get(
-            'http://www.cmegroup.com/CmeWS/mvc/Quotes/Future/%s/G'%(commodity_code))
 
-    return response
+
+    return session.get(
+        f'http://www.cmegroup.com/CmeWS/mvc/Quotes/Future/{commodity_code}/G'
+    )
 
 
 #

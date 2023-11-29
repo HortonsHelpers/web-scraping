@@ -22,20 +22,20 @@ def scrape(category_name,commodity_name):
     #so i use empty proxy to bypass the authentication
     proxy_handler = u.ProxyHandler({})
     opener = u.build_opener(proxy_handler)
-    
+
     #cme officially forbids scraping
     #so a header must be used for disguise as an internet browser
     #the developers say no to scraping, it appears to be so
     #but actually they turn a blind eye to us, thx
     #i need different types of commodity
     #so i need to format the website for each commodity
-    req=u.Request('http://www.cmegroup.com/trading/metals/%s/%s.html'%(
-            category_name,commodity_name),headers={'User-Agent': 'Mozilla/5.0'})
+    req = u.Request(
+        f'http://www.cmegroup.com/trading/metals/{category_name}/{commodity_name}.html',
+        headers={'User-Agent': 'Mozilla/5.0'},
+    )
     response=opener.open(req)
     result=response.read()
-    soup=bs(result,'html.parser')
-    
-    return soup
+    return bs(result,'html.parser')
 
 
 #
@@ -44,11 +44,11 @@ def etl(category_name,commodity_name):
     try:
         page=scrape(category_name,commodity_name)
         print(commodity_name)
- 
+
     except Exception as e:
         print(e)
-        
-        
+
+
     #i need date, prior settle price and volume
     #it is essential to view source of the website first
     #then use beautiful soup to search specific class
@@ -56,13 +56,8 @@ def etl(category_name,commodity_name):
     p2=page.find_all('td',class_=['statusOK','statusNull','statusAlert'])
     p3=page.find_all('td',class_="cmeTableRight")
 
-    a=[]
     b=[]
-    c=[]
-    
-    for i in p1:
-        a.append(i.text)
-
+    a = [i.text for i in p1]
     #somehow prior settle is hard to get
     #we cannot find that specific tag
     #we can search for the previous tag instead
@@ -72,17 +67,13 @@ def etl(category_name,commodity_name):
         temp=j.find_next()
         b.append(temp.text)
 
-    #the volume contains comma
-    for k in p3:
-        c.append(float(str(k).replace(',','')))
-        
-        
-    df=pd.DataFrame()    
+    c = [float(str(k).replace(',','')) for k in p3]
+    df=pd.DataFrame()
     df['expiration date']=a
     df['prior settle']=b
     df['volume']=c
     df['name']=commodity_name
-    
+
     #for me, i wanna highlight the front month
     #The front month is the month where the majority of volume and liquidity occurs
     df['front month']=df['volume']==max(df['volume'])

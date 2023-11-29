@@ -24,15 +24,13 @@ os.chdir('H:/')
 def scrape(url):
     
     session=requests.Session()
-    
+
     session.headers.update(
             {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36'})
-    
-    time.sleep(rd.randint(0,10))
-    
-    response=session.get(url,params={"_": int(time.time()*1000)})    
 
-    return response
+    time.sleep(rd.randint(0,10))
+
+    return session.get(url,params={"_": int(time.time()*1000)})
 
 
 # In[3]:
@@ -56,12 +54,12 @@ def get_groupid(jsondata):
 
     var=locals()
     for i in range(len(commoditygroup)):
-        var['a'+str(i)]=pd.DataFrame.from_dict(commoditygroup['children'].iloc[i])
-        var['a'+str(i)]['group']=commoditygroup['name'].iloc[i]
+        var[f'a{str(i)}'] = pd.DataFrame.from_dict(commoditygroup['children'].iloc[i])
+        var[f'a{str(i)}']['group'] = commoditygroup['name'].iloc[i]
 
-    groupid=pd.concat([var['a'+str(i)] for i in range(len(commoditygroup))])
+    groupid = pd.concat([var[f'a{str(i)}'] for i in range(len(commoditygroup))])
     groupid.reset_index(inplace=True,drop=True)
-    
+
     return groupid
 
 #get product id
@@ -77,35 +75,47 @@ def get_productid(jsondata):
 def get_data(jsondata):
     
     table=pd.DataFrame.from_dict(jsondata,orient='index').T
-    
+
     #unpack option related data    
     optionContractQuotes=table['optionContractQuotes'].iloc[0]
-        
+
     var=locals()
-    for i in range(len(optionContractQuotes)):        
-        var['a'+str(i)]=pd.DataFrame.from_dict(optionContractQuotes[i]).T
-        
-        var['a'+str(i)]['strikePrice']=var['a'+str(i)]['change'].loc['strikePrice']
-        var['a'+str(i)]['strikeRank']=var['a'+str(i)]['change'].loc['strikePrice']
-        var['a'+str(i)]['underlyingFutureContract']=var['a'+str(i)]['change'].loc['underlyingFutureContract']
-        var['a'+str(i)].drop(['strikePrice','strikeRank','underlyingFutureContract'],
-                             inplace=True)
-        var['a'+str(i)].reset_index(inplace=True)
-        var['a'+str(i)].columns=var['a'+str(i)].columns.str.replace('index','optiontype')    
-    
-    options=pd.concat([var['a'+str(i)] for i in range(len(optionContractQuotes))])
+    for i in range(len(optionContractQuotes)):    
+        var[f'a{str(i)}'] = pd.DataFrame.from_dict(optionContractQuotes[i]).T
+
+        var[f'a{str(i)}']['strikePrice'] = var[f'a{str(i)}']['change'].loc[
+            'strikePrice'
+        ]
+        var[f'a{str(i)}']['strikeRank'] = var[f'a{str(i)}']['change'].loc[
+            'strikePrice'
+        ]
+        var[f'a{str(i)}']['underlyingFutureContract'] = var[f'a{str(i)}'][
+            'change'
+        ].loc['underlyingFutureContract']
+        var[f'a{str(i)}'].drop(
+            ['strikePrice', 'strikeRank', 'underlyingFutureContract'],
+            inplace=True,
+        )
+        var[f'a{str(i)}'].reset_index(inplace=True)
+        var[f'a{str(i)}'].columns = var[f'a{str(i)}'].columns.str.replace(
+            'index', 'optiontype'
+        )    
+
+    options = pd.concat(
+        [var[f'a{str(i)}'] for i in range(len(optionContractQuotes))]
+    )
     options.columns=['options-'+i for i in options.columns]
 
     #unpack underlying future contract
     assert len(table)==1,"table length mismatch"
     underlyingFutureContractQuotes=pd.DataFrame.from_dict(table['underlyingFutureContractQuotes'].iloc[0])
-    
+
     assert len(underlyingFutureContractQuotes)==1,"underlyingFutureContractQuotes length mismatch"
     lastTradeDate_dict=underlyingFutureContractQuotes['lastTradeDate'].iloc[0]
     lastTradeDate=pd.DataFrame()
     for i in lastTradeDate_dict:
         lastTradeDate[i]=[lastTradeDate_dict[i]]
-    
+
     priceChart_dict=underlyingFutureContractQuotes['priceChart'].iloc[0]
     priceChart=pd.DataFrame()
     for i in priceChart_dict:
@@ -113,22 +123,22 @@ def get_data(jsondata):
     del underlyingFutureContractQuotes['lastTradeDate']
     del underlyingFutureContractQuotes['priceChart']
     priceChart.columns=priceChart.columns.str.replace('code','pricechartcode')
-    
+
     futures=pd.concat([underlyingFutureContractQuotes,lastTradeDate,priceChart],axis=1)
     futures.columns=['futures-'+i for i in futures.columns]
-    
+
     #concatenate options and futures
     output=options.copy(deep=True)
-    
+
     assert len(futures)==1,"futures length mismatch"
     for i in futures:
         output[i]=futures[i].iloc[0]
-        
+
     del table['optionContractQuotes']
     del table['underlyingFutureContractQuotes']
     for i in table:
         output[i]=table[i].iloc[0]
-        
+
     return output
 
 

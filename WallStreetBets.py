@@ -160,9 +160,9 @@ def create_df_from_dict(potential):
     
     if len(potential)==0:
         return pd.DataFrame()
-    
+
     #make sure each value has the same length
-    maxlen=max([len(potential[i]) for i in potential])
+    maxlen = max(len(potential[i]) for i in potential)
 
     for i in potential:
         if len(potential[i])!=maxlen:
@@ -176,116 +176,113 @@ def main():
     """ main  """
     
     logger = logging.getLogger()
-    
+
     session=requests.Session()
     threads=scraping_data(session)
-    
+
     logger.debug("prepare for wordcloud")
-    
+
     #etl
     rawtext=''.join(threads)
     cleantext=[i for i in rawtext.split(' ') if i.lower() not in stopword_dict]
-    
+
     #cleanse
     potential_tickers={}
     potential_commodities={}
-    
+
     for ind,val in enumerate(cleantext):
-        
+
         #remove punctuations
         for j in punctuations:
             if j in val:
                 cleantext[ind]=val.replace(j,'')
-                
+
         #remove stopword
         if cleantext[ind].lower() in stopword_dict:
             cleantext[ind]=''
-        
+
         #ticker starts with $
         if val[0]=='$' and not val[1].isdigit():
             potential_tickers[val]=[]
-        
+
         #find commodities of interests
         for ii in commodities_of_interests:
             if ii in val.lower():
                 potential_commodities[ii]=[]
-    
+
     #find the context
-    for ind,val in enumerate(threads):
+    for ind, val in enumerate(threads):
         
-        for j in potential_commodities:
+        for j, value in potential_commodities.items():
             if j in val.lower():
-                potential_commodities[j].append(val)
-            
-        for j in potential_tickers:
+                value.append(val)
+
+        for j, value_ in potential_tickers.items():
             if j in val:
-                potential_tickers[j].append(val)
-    
-    
+                value_.append(val)
+                    
+
     logger.debug("create output")
-    
+
     #count freq
-    lexicons=set([i for i in cleantext])
-    D={}
-    for word in lexicons:
-        D[word]=cleantext.count(word)
-    
+    lexicons = set(list(cleantext))
+    D = {word: cleantext.count(word) for word in lexicons}
     #create wordcount
     df=pd.DataFrame()
     df['word']=D.keys()
     df['count']=D.values()
     df.sort_values('count',inplace=True,ascending=False)
-    
+
     #create context finder
     df_commodities=create_df_from_dict(potential_commodities)
     df_tickers=create_df_from_dict(potential_tickers)
-    
+
     #concatenate
-    writer=pd.ExcelWriter('output.xlsx')    
+    writer=pd.ExcelWriter('output.xlsx')
     df_commodities.to_excel(writer,
                             sheet_name='potential commodities',
-                            index=False)    
+                            index=False)
     df_tickers.to_excel(writer,sheet_name='potential tickers',
-                        index=False)   
+                        index=False)
     df.to_excel(writer,sheet_name='word count',
-                            index=False)    
+                            index=False)
     writer.save()
-    
-    
-    logger.debug("wordcloud")    
+
+
+    logger.debug("wordcloud")
     processed=' '.join(cleantext)
     create_wordcloud(processed)
-    
+
     #cleanse text
     text_commodities=', '.join([i.title() for i in potential_commodities])
     text_tickers=', '.join([i.upper() for i in potential_tickers])
-    
+
     #create html
     row1=f"""*Commodities Mentioned: <font color="red">{text_commodities}</font>"""
     row2=f"""*Tickers Mentioned: <font color="red">{text_tickers}</font>"""
     disclaimer='*Please check the spreadsheet attached for the exact context of the mentioning.'
     image="""<img width=800 height=600 id="1" src="cid:output.png">"""
     html=f"""<p>{row1}</p><p>{row2}</p><br>{image}<br><p>{disclaimer}</p>"""
-    
-    
+
+
     files=['output.png','output.xlsx']
-    
+
     #send email
     try:
-        title = dt.datetime.today()
+        title = dt.datetime.now()
 
-        outlook = win32.Dispatch('outlook.application')  
-        mail = outlook.CreateItem(0)      
+        outlook = win32.Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
         receivers = ['lana.rhodes@brazzers.com',
                      'tori.black@brazzers.com',
-                     'naomi.woods@brazzers.com']  
-        mail.To = ';'.join(receivers)   
+                     'naomi.woods@brazzers.com']
+        mail.To = ';'.join(receivers)
         mail.Attachments.Add(Source=files)
-        mail.Subject ='What was Reddit talking about %s'%(title)
-        mail.BodyFormat=2    
+        mail.Subject = f'What was Reddit talking about {title}'
+        mail.BodyFormat=2
         mail.HTMLBody=html
         mail.Send()
-        
+
     except Exception:
         print(traceback.format_exc())
             

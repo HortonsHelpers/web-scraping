@@ -26,24 +26,17 @@ import pyodbc
 def get_download_link():
     
     download_link='https://www.lme.com/api/Lists/DownloadLinks/%7B02E29CA4-5597-42E7-9A22-59BB73AE8F6B%7D'
-        
-    
+
+
     #there are quite a few pages of reports
     #for simplicity, we only care about the latest report
     #note that the page counting starts from 0
     session=requests.Session()
     response = session.get(download_link, 
                            params={"currentPage": 0})
-    
-    
-    #the response is a json file
-    #i assume you should be familiar with json now
-    #if not, plz check the link below
-    # https://github.com/je-suis-tm/web-scraping/blob/master/CME2.py
-    url_list=response.json()['content_items']
-    
-    
-    return url_list
+
+
+    return response.json()['content_items']
 
 
 

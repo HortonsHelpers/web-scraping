@@ -28,14 +28,15 @@ def main():
     
     #get textbook list
     content=scrape('https://resource-cms.springernature.com/springer-cms/rest/v1/content/17858272/data/v4')
-        
+
     f=open('textbook.xlsx','wb')
     f.write(content)
     f.close
-        
+
     df=pd.ExcelFile('textbook.xlsx').parse('eBook list')
-    
-    
+
+
+    prefix='https://rd.springer.com/content/pdf/'
     #iterate through all books but it will take a long ass time
     for i in range(len(df)):
         
@@ -43,11 +44,10 @@ def main():
         name=df['Book Title'][i]
         url=df['OpenURL'][i]
         print(name)
-        
-        prefix='https://rd.springer.com/content/pdf/'
-        postfix=df['DOI URL'][i].split('http://doi.org/')[-1].replace('/','%2F')        
+
+        postfix=df['DOI URL'][i].split('http://doi.org/')[-1].replace('/','%2F')
         url=prefix+postfix+'.pdf'
-        
+
         time.sleep(5)
         content=scrape(url)
         f=open(f'{name}.pdf','wb')

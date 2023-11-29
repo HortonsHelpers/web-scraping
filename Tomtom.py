@@ -16,11 +16,9 @@ os.chdir('k:/')
 def scrape(city):
     
     prefix = 'https://api.midway.tomtom.com/ranking/liveHourly/'
-    
+
     session = requests.Session()
-    response = session.get(prefix+city)
-        
-    return response
+    return session.get(prefix+city)
 
 
 #
